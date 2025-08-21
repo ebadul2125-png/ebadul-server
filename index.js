@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Root route (Render test)
+// Root route
 app.get("/", (req, res) => {
   res.send("✅ Ebadul Server is Running Successfully on Render!");
 });
@@ -30,10 +30,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     const data = await response.json();
 
-    // 🔍 Debugging: Print full response to Render logs
-    console.log("🔍 Raw Airwings Response:", JSON.stringify(data, null, 2));
-
-    // JSON format clean karo
+    // ✅ Clean response
     let result = {
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
       status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
@@ -43,14 +40,13 @@ app.get("/track/airwings/:awb", async (req, res) => {
       deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
       receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
       vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
-      consignor: data?.Response?.Tracking?.[0]?.ConsignorName || "Not Available",
-      consignee: data?.Response?.Tracking?.[0]?.ConsigneeName || "Not Available",
+      consignor: data?.Response?.Tracking?.[0]?.Consignor || "Not Available",
+      consignee: data?.Response?.Tracking?.[0]?.Consignee || "Not Available",
       progress: data?.Response?.Events || []
     };
 
     res.json(result);
   } catch (err) {
-    console.error("❌ API Error:", err.message); // Debug error logs
     res.status(500).json({ error: "API call failed", details: err.message });
   }
 });
