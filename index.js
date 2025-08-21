@@ -6,6 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Root route (Render test)
+app.get("/", (req, res) => {
+  res.send("✅ Ebadul Server is Running Successfully on Render!");
+});
+
+// Tracking route
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
 
@@ -24,23 +30,17 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     const data = await response.json();
 
-    // ✅ Extract main tracking data
-    const track = data?.Response?.Tracking?.[0] || {};
-    const events = data?.Response?.Events || [];
-
+    // JSON format clean karo
     let result = {
-      awb: track.AWBNo || "Not Available",
-      refNo: track.RefNo || "Not Available",
-      status: track.Status || "Not Available",
-      bookingDate: track.BookingDate || "Not Available",
-      consignor: track.Consignor || "Not Available",   // ✅ Added
-      consignee: track.Consignee || "Not Available",   // ✅ Added
-      origin: track.Origin || "Not Available",
-      destination: track.Destination || "Not Available",
-      deliveryDate: track.DeliveryDate || "Not Available",
-      receiverName: track.ReceiverName || "Not Available",
-      vendorAwb: track.VendorAWBNo1 || "Not Available",
-      progress: events
+      awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
+      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
+      bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
+      origin: data?.Response?.Tracking?.[0]?.Origin || "Not Available",
+      destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
+      deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
+      receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
+      vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
+      progress: data?.Response?.Events || []
     };
 
     res.json(result);
@@ -49,5 +49,6 @@ app.get("/track/airwings/:awb", async (req, res) => {
   }
 });
 
-const PORT = 5000;
+// Render ka PORT use karo
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
