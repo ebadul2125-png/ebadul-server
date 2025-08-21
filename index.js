@@ -1,14 +1,10 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";
+import fetch from "node-fetch";   // ⚡ install करना: npm install node-fetch
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("✅ Ebadul Server is Running Successfully on Render!");
-});
 
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
@@ -28,7 +24,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     const data = await response.json();
 
-    // ✅ Final structured JSON
+    // JSON format clean कर लो
     let result = {
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
       status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
@@ -38,21 +34,14 @@ app.get("/track/airwings/:awb", async (req, res) => {
       deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
       receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
       vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
-
-      // ✅ Correct fields mapped
-      consignor: data?.Response?.Tracking?.[0]?.ShipperName || "Not Available",
-      consignee: data?.Response?.Tracking?.[0]?.ConsigneeName || "Not Available",
-
-      // ✅ Shipment progress
       progress: data?.Response?.Events || []
     };
 
     res.json(result);
-
   } catch (err) {
     res.status(500).json({ error: "API call failed", details: err.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = 5000;
 app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
