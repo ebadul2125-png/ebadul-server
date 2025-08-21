@@ -40,6 +40,8 @@ app.get("/track/airwings/:awb", async (req, res) => {
       deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
       receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
       vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
+      consignor: data?.Response?.Tracking?.[0]?.ConsignorName || "Not Available",
+      consignee: data?.Response?.Tracking?.[0]?.ConsigneeName || "Not Available",
       progress: data?.Response?.Events || []
     };
 
