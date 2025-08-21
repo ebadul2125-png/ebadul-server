@@ -30,6 +30,9 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     const data = await response.json();
 
+    // 🔍 Debugging: Print full response to Render logs
+    console.log("🔍 Raw Airwings Response:", JSON.stringify(data, null, 2));
+
     // JSON format clean karo
     let result = {
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
@@ -47,6 +50,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    console.error("❌ API Error:", err.message); // Debug error logs
     res.status(500).json({ error: "API call failed", details: err.message });
   }
 });
