@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";   // ⚡ install करना: npm install node-fetch
+import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+/* ------------------- Airwings Endpoint ------------------- */
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
 
@@ -24,7 +25,6 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     const data = await response.json();
 
-    // JSON format clean कर लो
     let result = {
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
       status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
@@ -39,9 +39,33 @@ app.get("/track/airwings/:awb", async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: "API call failed", details: err.message });
+    res.status(500).json({ error: "Airwings API failed", details: err.message });
   }
 });
 
+/* ------------------- PacificExp Endpoint ------------------- */
+app.get("/track/pacificexp/:awb", async (req, res) => {
+  const { awb } = req.params;
+
+  try {
+    const response = await fetch(`https://www.pacificexp.com/track/${awb}`, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
+
+    const text = await response.text();
+
+    // Example parsing: check if "Not Available" present
+    if (text.includes("AWB No. Not Available")) {
+      return res.json({ awb, status: "Not Available", progress: [] });
+    }
+
+    // TODO: Add custom parsing if PacificExp has a structured API
+    res.json({ awb, status: "Data Found (Raw HTML)", raw: text });
+  } catch (err) {
+    res.status(500).json({ error: "PacificExp API failed", details: err.message });
+  }
+});
+
+/* ------------------- Start Server ------------------- */
 const PORT = 5000;
 app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
