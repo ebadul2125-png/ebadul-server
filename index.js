@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";   // install karo: npm install node-fetch
+import fetch from "node-fetch"; // Install: npm install node-fetch
 
 const app = express();
 app.use(cors());
@@ -26,6 +26,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
     const data = await response.json();
 
     const result = {
+      courier: "Airwings",
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
       status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
       bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
@@ -34,7 +35,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
       deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
       receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
       vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
-      progress: data?.Response?.Events || []
+      history: data?.Response?.Events || []
     };
 
     res.json(result);
@@ -63,19 +64,35 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
     const data = await response.json();
 
     const result = {
+      courier: "PacificEXP",
       awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
-      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
       bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
+      consignee: data?.Response?.Tracking?.[0]?.Consignee || "Not Available",
       destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
+      serviceProvider: data?.Response?.Tracking?.[0]?.ServiceName || "Not Available",
+      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
       deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
       receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
-      serviceProvider: data?.Response?.Tracking?.[0]?.ServiceName || "Not Available",
-      progress: data?.Response?.Events || []
+      remark: data?.Response?.Tracking?.[0]?.Remark || "",
+      history: data?.Response?.Events || []
     };
 
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: "PacificEXP API failed", details: err.message });
+  }
+});
+
+/* ---------------------- UNIVERSAL TRACKING (Select Courier) ---------------------- */
+app.get("/track/:courier/:awb", async (req, res) => {
+  const { courier, awb } = req.params;
+
+  if (courier === "airwings") {
+    return res.redirect(`/track/airwings/${awb}`);
+  } else if (courier === "pacificexp") {
+    return res.redirect(`/track/pacificexp/${awb}`);
+  } else {
+    return res.status(400).json({ error: "Unknown courier" });
   }
 });
 
