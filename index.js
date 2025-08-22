@@ -6,12 +6,45 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ------------------- Airwings Endpoint ------------------- */
+// Simple health check
+app.get("/health", (req, res) => res.json({ ok: true }));
+
+// ---------- Helpers ----------
+function normalizeEvents(events = []) {
+  return (Array.isArray(events) ? events : []).map(e => ({
+    date: e?.EventDate ?? "",
+    time: e?.EventTime ?? "",
+    location: e?.Location ?? "",
+    status: e?.Status ?? ""
+  }));
+}
+
+function normalizeTracking(tr) {
+  return {
+    awb: tr?.AWBNo ?? "Not Available",
+    bookingDate: tr?.BookingDate ?? "Not Available",
+    consignor: tr?.Consignor ?? tr?.Shipper ?? "Not Available",
+    consignee: tr?.Consignee ?? "Not Available",
+    origin: tr?.Origin ?? "Not Available",
+    destination: tr?.Destination ?? "Not Available",
+    status: tr?.Status ?? "Not Available",
+    deliveryDate: tr?.DeliveryDate ?? "Not Available",
+    receiverName: tr?.ReceiverName ?? "Not Available",
+    vendorAwb:
+      tr?.VendorAWBNo1 ?? tr?.VendorAWBNo2 ?? tr?.VendorAWBNo ?? "Not Available",
+    serviceProvider:
+      tr?.ServiceName ?? tr?.VendorName ?? tr?.VendorName2 ?? "Not Available",
+    trackingNumber:
+      tr?.VendorAWBNo2 ?? tr?.VendorAWBNo1 ?? tr?.VendorAWBNo ?? "Not Available",
+    remark: tr?.Remark ?? ""
+  };
+}
+
+// ---------- Airwings ----------
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
-
   try {
-    const response = await fetch("http://cloud.airwingsindia.com/api/v1/Tracking/Tracking", {
+    const resp = await fetch("http://cloud.airwingsindia.com/api/v1/Tracking/Tracking", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -20,52 +53,70 @@ app.get("/track/airwings/:awb", async (req, res) => {
         AWBNo: awb,
         Type: "A",
         RequiredUrl: "yes"
-      })
+      }),
+      // 20s timeout via AbortController
+      signal: AbortSignal.timeout(20000)
     });
 
-    const data = await response.json();
+    const data = await resp.json().catch(() => ({}));
 
-    let result = {
-      awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
-      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
-      bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
-      origin: data?.Response?.Tracking?.[0]?.Origin || "Not Available",
-      destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
-      deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
-      receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
-      vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
-      progress: data?.Response?.Events || []
-    };
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Airwings API failed", details: err.message });
-  }
-});
-
-/* ------------------- PacificExp Endpoint ------------------- */
-app.get("/track/pacificexp/:awb", async (req, res) => {
-  const { awb } = req.params;
-
-  try {
-    const response = await fetch(`https://www.pacificexp.com/track/${awb}`, {
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
-
-    const text = await response.text();
-
-    // Example parsing: check if "Not Available" present
-    if (text.includes("AWB No. Not Available")) {
-      return res.json({ awb, status: "Not Available", progress: [] });
+    if (!data?.Response || data?.Response?.ErrorDisc === "AWB No not found") {
+      return res.json({ success: true, carrier: "airwings", awb, data: null, progress: [] });
     }
 
-    // TODO: Add custom parsing if PacificExp has a structured API
-    res.json({ awb, status: "Data Found (Raw HTML)", raw: text });
+    const tr = data.Response?.Tracking?.[0] ?? {};
+    const events = data.Response?.Events ?? [];
+    return res.json({
+      success: true,
+      carrier: "airwings",
+      awb,
+      data: normalizeTracking(tr),
+      progress: normalizeEvents(events)
+    });
   } catch (err) {
-    res.status(500).json({ error: "PacificExp API failed", details: err.message });
+    return res.status(500).json({ success: false, carrier: "airwings", awb, error: err.message });
   }
 });
 
-/* ------------------- Start Server ------------------- */
-const PORT = 5000;
-app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
+// ---------- PacificExp (official API used by their site) ----------
+app.get("/track/pacificexp/:awb", async (req, res) => {
+  const { awb } = req.params;
+  try {
+    const resp = await fetch("https://eship.pacificexp.net/api/v1/Tracking/Tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        UserID: "test1",
+        Password: "Test@2024#",
+        AWBNo: awb,
+        Type: "A",
+        RequiredUrl: "yes"
+      }),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (!data?.Response || data?.Response?.ErrorDisc === "AWB No not found") {
+      return res.json({ success: true, carrier: "pacificexp", awb, data: null, progress: [] });
+    }
+
+    const tr = data.Response?.Tracking?.[0] ?? {};
+    const events = data.Response?.Events ?? [];
+    return res.json({
+      success: true,
+      carrier: "pacificexp",
+      awb,
+      data: normalizeTracking(tr),
+      progress: normalizeEvents(events)
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, carrier: "pacificexp", awb, error: err.message });
+  }
+});
+
+// -------------- Start Server --------------
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
