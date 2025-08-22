@@ -1,7 +1,14 @@
-import fetch from 'node-fetch';
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";   // ⚡ install करना: npm install node-fetch
 
-// AIRWINGS API FUNCTION (Fixed with original endpoint)
-export async function getAirwingsTracking(awb) {
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get("/track/airwings/:awb", async (req, res) => {
+  const { awb } = req.params;
+
   try {
     const response = await fetch("http://cloud.airwingsindia.com/api/v1/Tracking/Tracking", {
       method: "POST",
@@ -12,62 +19,29 @@ export async function getAirwingsTracking(awb) {
         AWBNo: awb,
         Type: "A",
         RequiredUrl: "yes"
-      }),
+      })
     });
 
     const data = await response.json();
 
-    if (!data?.Response || data.Response.ErrorDisc !== "Success") {
-      return { success: false, error: "Airwings AWB not found" };
-    }
-
-    return {
-      success: true,
-      provider: "Airwings",
-      awb: awb,
-      details: data.Response.Tracking[0] || {},
-      history: data.Response.Events || []
+    // JSON format clean कर लो
+    let result = {
+      awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
+      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
+      bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
+      origin: data?.Response?.Tracking?.[0]?.Origin || "Not Available",
+      destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
+      deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
+      receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
+      vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
+      progress: data?.Response?.Events || []
     };
 
+    res.json(result);
   } catch (err) {
-    console.error("Airwings API Error:", err);
-    return { success: false, error: "Error fetching Airwings data" };
+    res.status(500).json({ error: "API call failed", details: err.message });
   }
-}
+});
 
-// PACIFICEXP API FUNCTION (unchanged)
-export async function getPacificExpTracking(awb) {
-  try {
-    const reqObj = {
-      UserID: "test1",
-      Password: "Test@2024#",
-      AWBNo: awb,
-      Type: "A",
-      RequiredUrl: "yes"
-    };
-
-    const res = await fetch("https://eship.pacificexp.net/api/v1/Tracking/Tracking", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(reqObj)
-    });
-
-    const json = await res.json();
-
-    if (!json?.Response || json.Response.ErrorDisc !== "Success") {
-      return { success: false, error: "PacificExp AWB not found" };
-    }
-
-    return {
-      success: true,
-      provider: "PacificExp",
-      awb: awb,
-      details: json.Response.Tracking[0] || {},
-      history: json.Response.Events || []
-    };
-
-  } catch (err) {
-    console.error("PacificExp API Error:", err);
-    return { success: false, error: "Error fetching PacificExp data" };
-  }
-}
+const PORT = 5000;
+app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
