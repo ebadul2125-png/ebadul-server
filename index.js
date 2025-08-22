@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch"; // Install: npm install node-fetch
+import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* ---------------------- AIRWINGS TRACKING ---------------------- */
+/* ---------------------- Airwings Tracking ---------------------- */
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
 
@@ -26,16 +26,16 @@ app.get("/track/airwings/:awb", async (req, res) => {
     const data = await response.json();
 
     const result = {
-      courier: "Airwings",
-      awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
-      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
-      bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
-      origin: data?.Response?.Tracking?.[0]?.Origin || "Not Available",
-      destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
-      deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
-      receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
-      vendorAwb: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "Not Available",
-      history: data?.Response?.Events || []
+      AWBNo: data?.Response?.Tracking?.[0]?.AWBNo || "",
+      BookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "",
+      Consignee: data?.Response?.Tracking?.[0]?.Consignee || "",
+      Origin: data?.Response?.Tracking?.[0]?.Origin || "",
+      Destination: data?.Response?.Tracking?.[0]?.Destination || "",
+      Status: data?.Response?.Tracking?.[0]?.Status || "",
+      DeliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "",
+      ReceiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "",
+      ForwardingAWB: data?.Response?.Tracking?.[0]?.VendorAWBNo1 || "",
+      Events: data?.Response?.Events || []
     };
 
     res.json(result);
@@ -44,7 +44,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
   }
 });
 
-/* ---------------------- PACIFICEXP TRACKING ---------------------- */
+/* ---------------------- PacificEXP Tracking ---------------------- */
 app.get("/track/pacificexp/:awb", async (req, res) => {
   const { awb } = req.params;
 
@@ -64,17 +64,16 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
     const data = await response.json();
 
     const result = {
-      courier: "PacificEXP",
-      awb: data?.Response?.Tracking?.[0]?.AWBNo || "Not Available",
-      bookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "Not Available",
-      consignee: data?.Response?.Tracking?.[0]?.Consignee || "Not Available",
-      destination: data?.Response?.Tracking?.[0]?.Destination || "Not Available",
-      serviceProvider: data?.Response?.Tracking?.[0]?.ServiceName || "Not Available",
-      status: data?.Response?.Tracking?.[0]?.Status || "Not Available",
-      deliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "Not Available",
-      receiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "Not Available",
-      remark: data?.Response?.Tracking?.[0]?.Remark || "",
-      history: data?.Response?.Events || []
+      AWBNo: data?.Response?.Tracking?.[0]?.AWBNo || "",
+      BookingDate: data?.Response?.Tracking?.[0]?.BookingDate || "",
+      Consignee: data?.Response?.Tracking?.[0]?.Consignee || "",
+      Destination: data?.Response?.Tracking?.[0]?.Destination || "",
+      ServiceProvider: data?.Response?.Tracking?.[0]?.ServiceName || "",
+      Status: data?.Response?.Tracking?.[0]?.Status || "",
+      DeliveryDate: data?.Response?.Tracking?.[0]?.DeliveryDate || "",
+      ReceiverName: data?.Response?.Tracking?.[0]?.ReceiverName || "",
+      Remark: data?.Response?.Tracking?.[0]?.Remark || "",
+      Events: data?.Response?.Events || []
     };
 
     res.json(result);
@@ -83,19 +82,14 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
   }
 });
 
-/* ---------------------- UNIVERSAL TRACKING (Select Courier) ---------------------- */
-app.get("/track/:courier/:awb", async (req, res) => {
+/* ---------------------- Universal Endpoint ---------------------- */
+app.get("/track/:courier/:awb", (req, res) => {
   const { courier, awb } = req.params;
-
-  if (courier === "airwings") {
-    return res.redirect(`/track/airwings/${awb}`);
-  } else if (courier === "pacificexp") {
-    return res.redirect(`/track/pacificexp/${awb}`);
-  } else {
-    return res.status(400).json({ error: "Unknown courier" });
-  }
+  if (courier === "airwings") return res.redirect(`/track/airwings/${awb}`);
+  if (courier === "pacificexp") return res.redirect(`/track/pacificexp/${awb}`);
+  return res.status(400).json({ error: "Unknown courier" });
 });
 
-/* ---------------------- START SERVER ---------------------- */
-const PORT = 5000;
-app.listen(PORT, () => console.log(`✅ Backend running at http://localhost:${PORT}`));
+/* ---------------------- Server Start ---------------------- */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Backend running on port ${PORT}`));
