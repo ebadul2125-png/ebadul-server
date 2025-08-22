@@ -8,26 +8,26 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// ROOT ENDPOINT
+// Root check
 app.get('/', (req, res) => {
   res.send('Tracking API is running');
 });
 
-// AIRWINGS ENDPOINT
+// Airwings Endpoint
 app.get('/track/airwings/:awb', async (req, res) => {
   const { awb } = req.params;
   const result = await getAirwingsTracking(awb);
   res.json(result);
 });
 
-// PACIFICEXP ENDPOINT
+// PacificEXP Endpoint
 app.get('/track/pacificexp/:awb', async (req, res) => {
   const { awb } = req.params;
   const result = await getPacificExpTracking(awb);
   res.json(result);
 });
 
-// START SERVER
+// Start Server (Render compatible)
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
