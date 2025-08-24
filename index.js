@@ -6,32 +6,30 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Simple health check
-app.get("/health", (req, res) => res.json({ ok: true }));
-
-// ---------- Helpers ----------
+// ✅ Helper Functions
 function normalizeEvents(events = []) {
   return (Array.isArray(events) ? events : []).map(e => ({
-    date: e?.EventDate ?? "",
-    time: e?.EventTime ?? "",
-    location: e?.Location ?? "",
-    status: e?.Status ?? ""
+    date: e?.EventDate ?? e?.date ?? "",
+    time: e?.EventTime ?? e?.time ?? "",
+    location: e?.Location ?? e?.location ?? "",
+    status: e?.Status ?? e?.activity ?? "",
+    remarks: e?.Remark ?? e?.remarks ?? ""
   }));
 }
 
 function normalizeTracking(tr) {
   return {
-    awb: tr?.AWBNo ?? "Not Available",
-    bookingDate: tr?.BookingDate ?? "Not Available",
+    awb: tr?.AWBNo ?? tr?.awbNo ?? "Not Available",
+    bookingDate: tr?.BookingDate ?? tr?.bookingDate ?? "Not Available",
     consignor: tr?.Consignor ?? tr?.Shipper ?? "Not Available",
-    consignee: tr?.Consignee ?? "Not Available",
+    consignee: tr?.Consignee ?? tr?.consigneeName ?? "Not Available",
     origin: tr?.Origin ?? "Not Available",
-    destination: tr?.Destination ?? "Not Available",
-    status: tr?.Status ?? "Not Available",
-    deliveryDate: tr?.DeliveryDate ?? "Not Available",
-    receiverName: tr?.ReceiverName ?? "Not Available",
+    destination: tr?.Destination ?? tr?.destination ?? "Not Available",
+    status: tr?.Status ?? tr?.status ?? "Not Available",
+    deliveryDate: tr?.DeliveryDate ?? tr?.deliveryDate ?? "Not Available",
+    receiverName: tr?.ReceiverName ?? tr?.receiverName ?? "Not Available",
     vendorAwb:
-      tr?.VendorAWBNo1 ?? tr?.VendorAWBNo2 ?? tr?.VendorAWBNo ?? "Not Available",
+      tr?.VendorAWBNo1 ?? tr?.VendorAWBNo2 ?? tr?.VendorAWBNo ?? tr?.forwardingNo ?? "Not Available",
     serviceProvider:
       tr?.ServiceName ?? tr?.VendorName ?? tr?.VendorName2 ?? "Not Available",
     trackingNumber:
@@ -40,7 +38,7 @@ function normalizeTracking(tr) {
   };
 }
 
-// ---------- Airwings ----------
+/* ================== AIRWINGS ================== */
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
   try {
@@ -54,12 +52,10 @@ app.get("/track/airwings/:awb", async (req, res) => {
         Type: "A",
         RequiredUrl: "yes"
       }),
-      // 20s timeout via AbortController
       signal: AbortSignal.timeout(20000)
     });
 
     const data = await resp.json().catch(() => ({}));
-
     if (!data?.Response || data?.Response?.ErrorDisc === "AWB No not found") {
       return res.json({ success: true, carrier: "airwings", awb, data: null, progress: [] });
     }
@@ -78,7 +74,7 @@ app.get("/track/airwings/:awb", async (req, res) => {
   }
 });
 
-// ---------- PacificExp (official API used by their site) ----------
+/* ================== PACIFICEXP ================== */
 app.get("/track/pacificexp/:awb", async (req, res) => {
   const { awb } = req.params;
   try {
@@ -96,7 +92,6 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
     });
 
     const data = await resp.json().catch(() => ({}));
-
     if (!data?.Response || data?.Response?.ErrorDisc === "AWB No not found") {
       return res.json({ success: true, carrier: "pacificexp", awb, data: null, progress: [] });
     }
@@ -115,8 +110,49 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
   }
 });
 
-// -------------- Start Server --------------
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+/* ================== TLS (Mock Data) ================== */
+const tlsTrackingData = {
+  "29520947": {
+    awbNo: "29520947",
+    bookingDate: "20/8/2025",
+    consigneeName: "ASMA SHAIKH",
+    destination: "UNITED ARAB EMIRATES",
+    pieces: 1,
+    status: "INTRANSIT",
+    deliveryDate: "",
+    deliveryTime: "",
+    receiverName: "",
+    forwardingNo: "",
+    deliveryInfo: [
+      { date: "23/8/2025", time: "21:11", location: "Dubai", activity: "RETURN TO HUB", remarks: "" },
+      { date: "23/8/2025", time: "20:11", location: "Dubai", activity: "NO RESPONSE", remarks: "" },
+      { date: "23/8/2025", time: "08:31", location: "Dubai", activity: "OUT FOR DELIVERY", remarks: "" },
+      { date: "23/8/2025", time: "07:21", location: "Dubai", activity: "RECEIVED AT HUB", remarks: "" },
+      { date: "23/8/2025", time: "03:42", location: "Dubai", activity: "IN TRANSIT", remarks: "" },
+      { date: "23/8/2025", time: "03:27", location: "Dubai", activity: "RECEIVED AT ECO/TEAM EXPRESS", remarks: "" },
+      { date: "23/8/2025", time: "03:26", location: "Dubai", activity: "PICKED UP", remarks: "" },
+      { date: "23/8/2025", time: "02:49", location: "Dubai", activity: "DATA UPLOADED", remarks: "" },
+      { date: "21/8/2025", time: "15:44", location: "INDIA", activity: "SHIPMENT FORWARDED TO DESTINATION HUB", remarks: "RUN# 1697" },
+      { date: "20/8/2025", time: "20:50", location: "HOJAI", activity: "SHIPMENT HAS BEEN BOOKED", remarks: "" }
+    ]
+  }
+};
+
+app.get("/track/tls/:awb", (req, res) => {
+  const { awb } = req.params;
+  const data = tlsTrackingData[awb];
+  if (!data) {
+    return res.json({ success: false, carrier: "tls", awb, error: "TLS AWB not found" });
+  }
+  return res.json({
+    success: true,
+    carrier: "tls",
+    awb,
+    data: normalizeTracking(data),
+    progress: normalizeEvents(data.deliveryInfo)
+  });
 });
+
+/* ================== START SERVER ================== */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
