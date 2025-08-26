@@ -111,47 +111,64 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
 });
 
 /* ================== TLS (Mock Data) ================== */
-const tlsTrackingData = {
-  "29520947": {
-    awbNo: "29520947",
-    bookingDate: "20/8/2025",
-    consigneeName: "ASMA SHAIKH",
-    destination: "UNITED ARAB EMIRATES",
-    pieces: 1,
-    status: "INTRANSIT",
-    deliveryDate: "",
-    deliveryTime: "",
-    receiverName: "",
-    forwardingNo: "",
-    deliveryInfo: [
-      { date: "23/8/2025", time: "21:11", location: "Dubai", activity: "RETURN TO HUB", remarks: "" },
-      { date: "23/8/2025", time: "20:11", location: "Dubai", activity: "NO RESPONSE", remarks: "" },
-      { date: "23/8/2025", time: "08:31", location: "Dubai", activity: "OUT FOR DELIVERY", remarks: "" },
-      { date: "23/8/2025", time: "07:21", location: "Dubai", activity: "RECEIVED AT HUB", remarks: "" },
-      { date: "23/8/2025", time: "03:42", location: "Dubai", activity: "IN TRANSIT", remarks: "" },
-      { date: "23/8/2025", time: "03:27", location: "Dubai", activity: "RECEIVED AT ECO/TEAM EXPRESS", remarks: "" },
-      { date: "23/8/2025", time: "03:26", location: "Dubai", activity: "PICKED UP", remarks: "" },
-      { date: "23/8/2025", time: "02:49", location: "Dubai", activity: "DATA UPLOADED", remarks: "" },
-      { date: "21/8/2025", time: "15:44", location: "INDIA", activity: "SHIPMENT FORWARDED TO DESTINATION HUB", remarks: "RUN# 1697" },
-      { date: "20/8/2025", time: "20:50", location: "HOJAI", activity: "SHIPMENT HAS BEEN BOOKED", remarks: "" }
-    ]
-  }
-};
 
-app.get("/track/tls/:awb", (req, res) => {
+/* ================== TLS REAL API ================== */
+app.get("/track/tls/:awb", async (req, res) => {
   const { awb } = req.params;
-  const data = tlsTrackingData[awb];
-  if (!data) {
-    return res.json({ success: false, carrier: "tls", awb, error: "TLS AWB not found" });
+  const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
+
+  try {
+    const resp = await fetch(url);
+    const json = await resp.json();
+
+    if (!json || !Array.isArray(json) || json.length === 0) {
+      return res.json({ success: false, carrier: "tls", awb, error: "No data found" });
+    }
+
+    const data = json[0]; // Main object
+    const docketInfo = Object.fromEntries(data.docket_info || []);
+
+    // **Main Tracking Data (Mapped)**
+    const trackingData = {
+      awb: data.tracking_no || awb,
+      bookingDate: docketInfo["Booking Date"] || "Not Available",
+      consignor: docketInfo["Shipper Company"] || docketInfo["Shipper Name"] || "Not Available",
+      consignee: docketInfo["Consignee Name"] || docketInfo["Consignee Company"] || "Not Available",
+      origin: docketInfo["Origin"] || docketInfo["Origin Hub"] || "Not Available",
+      destination: docketInfo["Destination"] || docketInfo["Consignee Country"] || "Not Available",
+      status: docketInfo["Status"] || "Not Available",
+      deliveryDate: docketInfo["Delivery Date and Time"] || "",
+      receiverName: docketInfo["Receiver Name"] || "",
+      vendorAwb: docketInfo["Forwarding No."] || "Not Available",
+      serviceProvider: docketInfo["Service Name"] || "TLS",
+      trackingNumber: data.tracking_no || awb,
+      remark: docketInfo["Delivery Remark"] || ""
+    };
+
+    // **Events Mapping**
+    const events = (data.docket_events || []).map(e => ({
+      date: (e.event_at || "").split(" ")[0],
+      time: (e.event_at || "").split(" ")[1] || "",
+      location: e.event_location || "",
+      status: e.event_description || "",
+      remarks: e.event_remark || ""
+    }));
+
+    return res.json({
+      success: true,
+      carrier: "tls",
+      awb,
+      data: trackingData,
+      progress: events
+    });
+
+  } catch (err) {
+    return res.status(500).json({ success: false, carrier: "tls", awb, error: err.message });
   }
-  return res.json({
-    success: true,
-    carrier: "tls",
-    awb,
-    data: normalizeTracking(data),
-    progress: normalizeEvents(data.deliveryInfo)
-  });
 });
+
+
+
 
 /* ================== START SERVER ================== */
 const PORT = process.env.PORT || 5000;

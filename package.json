@@ -1,3 +1,21 @@
+
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.7.0"
+  }
+}
+
+
 {
   "success": true,
   "carrier": "airwings",
