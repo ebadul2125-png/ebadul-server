@@ -1,4 +1,3 @@
-
 {
   "name": "functions",
   "version": "1.0.0",
@@ -11,68 +10,9 @@
   "dependencies": {
     "express": "^5.1.0",
     "cors": "^2.8.5",
-    "node-fetch": "^2.7.0"
-  }
-}
-
-
-{
-  "success": true,
-  "carrier": "airwings",
-  "awb": "21567993",
-  "data": {
-    "awb": "21567993",
-    "bookingDate": "18/08/2025",
-    "consignor": "ABC Logistics",
-    "consignee": "XYZ Pvt Ltd",
-    "origin": "MUMBAI",
-    "destination": "ABU DHABI",
-    "status": "Delivered",
-    "deliveryDate": "19/08/2025 12:39",
-    "receiverName": "JOHN DOE",
-    "vendorAwb": "Not Available",
-    "serviceProvider": "Airwings",
-    "trackingNumber": "21567993",
-    "remark": ""
-  },
-  "progress": [
-    {
-      "date": "19/08/2025",
-      "time": "1239",
-      "location": "ABU DHABI",
-      "status": "Delivered"
-    },
-    {
-      "date": "19/08/2025",
-      "time": "0655",
-      "location": "ABU DHABI",
-      "status": "With Delivery Courier"
-    },
-    {
-      "date": "19/08/2025",
-      "time": "0343",
-      "location": "DUBAI",
-      "status": "Sent To Abu Dhabi"
-    },
-    {
-      "date": "18/08/2025",
-      "time": "1659",
-      "location": "DUBAI",
-      "status": "Shipment Picked Up"
-    },
-    {
-      "date": "16/08/2025",
-      "time": "1105",
-      "location": "MUMBAI",
-      "status": "Flight Assigned"
-    }
-  ],
-  "dependencies": {
+    "node-fetch": "^2.7.0",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "node-fetch": "^2.7.0",
     "xlsx": "^0.18.5"
   }
 }
