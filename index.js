@@ -112,23 +112,24 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
 
 /* ================== TLS (Mock Data) ================== */
 
-/* ================== TLS REAL API ================== */
+/* ================== TLS REAL API (FINAL UNIVERSAL PARSER) ================== */
 app.get("/track/tls/:awb", async (req, res) => {
   const { awb } = req.params;
   const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
 
   try {
     const resp = await fetch(url);
-    const json = await resp.json();
+    const json = await resp.json().catch(() => null);
 
+    // Validate response
     if (!json || !Array.isArray(json) || json.length === 0) {
       return res.json({ success: false, carrier: "tls", awb, error: "No data found" });
     }
 
-    const data = json[0]; // Main object
+    const data = json[0];
     const docketInfo = Object.fromEntries(data.docket_info || []);
 
-    // **Main Tracking Data (Mapped)**
+    // ===== Main Tracking Data =====
     const trackingData = {
       awb: data.tracking_no || awb,
       bookingDate: docketInfo["Booking Date"] || "Not Available",
@@ -145,7 +146,7 @@ app.get("/track/tls/:awb", async (req, res) => {
       remark: docketInfo["Delivery Remark"] || ""
     };
 
-    // **Events Mapping**
+    // ===== Progress Events =====
     const events = (data.docket_events || []).map(e => ({
       date: (e.event_at || "").split(" ")[0],
       time: (e.event_at || "").split(" ")[1] || "",
@@ -166,6 +167,7 @@ app.get("/track/tls/:awb", async (req, res) => {
     return res.status(500).json({ success: false, carrier: "tls", awb, error: err.message });
   }
 });
+
 
 
 
