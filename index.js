@@ -38,6 +38,13 @@ function normalizeTracking(tr) {
   };
 }
 
+// ======== Helper Function for TLS ========
+function getValue(infoArr, key) {
+  if (!Array.isArray(infoArr)) return "Not Available";
+  const row = infoArr.find(i => i[0] === key);
+  return row ? row[1] : "Not Available";
+}
+
 /* ================== AIRWINGS ================== */
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
@@ -111,7 +118,6 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
 });
 
 /* ================== TLS (Mock Data) ================== */
-// ======== TLS Tracking API Proxy ========
 app.get('/track/tls/:awb', async (req, res) => {
   try {
     const { awb } = req.params;
@@ -171,23 +177,10 @@ app.get('/track/tls/:awb', async (req, res) => {
   }
 });
 
-// ======== Helper Function ========
-function getValue(infoArr, key) {
-  if (!Array.isArray(infoArr)) return "Not Available";
-  const row = infoArr.find(i => i[0] === key);
-  return row ? row[1] : "Not Available";
-}
-
 // ======== Test Route ========
 app.get('/', (req, res) => {
-  res.send('✅ TLS Proxy Running');
+  res.send('✅ Tracking Proxy Running');
 });
-
-// ======== Start Server ========
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-
-
-
 
 /* ================== START SERVER ================== */
 const PORT = process.env.PORT || 5000;
