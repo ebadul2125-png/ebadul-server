@@ -111,55 +111,90 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
 });
 
 /* ================== TLS (Mock Data) ================== */
-
-app.get("/track/tls/:awb", async (req, res) => {
-  const awb = req.params.awb;
-  const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
-
+// ======== TLS Tracking API Proxy ========
+app.get('/track/tls/:awb', async (req, res) => {
   try {
-    console.log("🔄 Fetching TLS Data for:", awb);
+    const { awb } = req.params;
 
-    const r = await fetch(url, { headers: { "Accept": "application/json" } });
-    const raw = await r.text();
+    // ✅ TLS API URL
+    const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
 
-    console.log("=== TLS RAW RESPONSE ===", raw);
-
-    let json;
-    try { json = JSON.parse(raw); } catch (err) {
-      console.error("❌ JSON Parse Error:", err);
-      return res.json({ success: false, carrier: "tls", awb, error: "Invalid JSON", raw });
-    }
-
-    if (!json || !Array.isArray(json) || json.length === 0) {
-      console.warn("⚠️ TLS No Data for:", awb);
-      return res.json({ success: false, carrier: "tls", awb, error: "No data", raw });
-    }
-
-    const info = json[0];
-    res.json({
-      success: true,
-      carrier: "tls",
-      awb,
-      data: {
-        awb: info.tracking_no,
-        bookingDate: info.docket_info?.find(x => x[0] === "Booking Date")?.[1] || "Not Available",
-        consignee: info.docket_info?.find(x => x[0] === "Consignee Name")?.[1] || "Not Available",
-        origin: info.docket_info?.find(x => x[0] === "Origin")?.[1] || "Not Available",
-        destination: info.docket_info?.find(x => x[0] === "Destination")?.[1] || "Not Available",
-        status: info.docket_info?.find(x => x[0] === "Status")?.[1] || "Not Available",
-        deliveryDate: info.docket_info?.find(x => x[0] === "Delivery Date and Time")?.[1] || "",
-        receiverName: info.docket_info?.find(x => x[0] === "Receiver Name")?.[1] || "",
-        vendorAwb: info.docket_info?.find(x => x[0] === "Forwarding No.")?.[1] || "Not Available",
-      },
-      progress: info.docket_events || []
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'User-Agent': 'Mozilla/5.0 (Node.js Server)'
+      }
     });
 
+    const text = await response.text();
+
+    // Agar API json string return kare toh parse karo
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      return res.json({ success: false, error: 'Invalid JSON from TLS API' });
+    }
+
+    // ✅ Response normalize karo frontend ke liye
+    if (Array.isArray(data) && data.length > 0 && !data[0].errors) {
+      const d = data[0];
+      res.json({
+        success: true,
+        carrier: 'tls',
+        awb: d.tracking_no,
+        data: {
+          awb: d.tracking_no,
+          bookingDate: getValue(d.docket_info, "Booking Date"),
+          consignor: getValue(d.docket_info, "Shipper Name"),
+          consignee: getValue(d.docket_info, "Consignee Name"),
+          origin: getValue(d.docket_info, "Origin"),
+          destination: getValue(d.docket_info, "Destination"),
+          status: getValue(d.docket_info, "Status"),
+          deliveryDate: getValue(d.docket_info, "Delivery Date and Time"),
+          receiverName: getValue(d.docket_info, "Receiver Name"),
+          vendorAwb: getValue(d.docket_info, "Forwarding No."),
+        },
+        progress: (d.docket_events || []).map(e => ({
+          date: e.event_at?.split(' ')[0] || '',
+          time: e.event_at?.split(' ')[1] || '',
+          location: e.event_location || '',
+          status: e.event_description || ''
+        }))
+      });
+    } else {
+      res.json({ success: false, carrier: 'tls', awb, error: 'TLS AWB not found' });
+    }
+
   } catch (err) {
-    console.error("❌ TLS Fetch Error:", err);
-    res.status(500).json({ success: false, carrier: "tls", awb, error: err.message });
+    res.json({ success: false, carrier: 'tls', error: err.message });
   }
 });
 
+// ======== Helper Function ========
+function getValue(infoArr, key) {
+  if (!Array.isArray(infoArr)) return "Not Available";
+  const row = infoArr.find(i => i[0] === key);
+  return row ? row[1] : "Not Available";
+}
+
+// ======== Test Route ========
+app.get('/', (req, res) => {
+  res.send('✅ TLS Proxy Running');
+});
+
+// ======== Start Server ========
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
+import express from 'express';
+import fetch from 'node-fetch';
+import cors from 'cors';
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 5000;
 
 
 
