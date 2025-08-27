@@ -112,62 +112,53 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
 
 /* ================== TLS (Mock Data) ================== */
 
-/* ================== TLS REAL API (FINAL UNIVERSAL PARSER) ================== */
 app.get("/track/tls/:awb", async (req, res) => {
-  const { awb } = req.params;
+  const awb = req.params.awb;
   const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
 
   try {
-    const resp = await fetch(url);
-    const json = await resp.json().catch(() => null);
+    console.log("🔄 Fetching TLS Data for:", awb);
 
-    // Validate response
-    if (!json || !Array.isArray(json) || json.length === 0) {
-      return res.json({ success: false, carrier: "tls", awb, error: "No data found" });
+    const r = await fetch(url, { headers: { "Accept": "application/json" } });
+    const raw = await r.text();
+
+    console.log("=== TLS RAW RESPONSE ===", raw);
+
+    let json;
+    try { json = JSON.parse(raw); } catch (err) {
+      console.error("❌ JSON Parse Error:", err);
+      return res.json({ success: false, carrier: "tls", awb, error: "Invalid JSON", raw });
     }
 
-    const data = json[0];
-    const docketInfo = Object.fromEntries(data.docket_info || []);
+    if (!json || !Array.isArray(json) || json.length === 0) {
+      console.warn("⚠️ TLS No Data for:", awb);
+      return res.json({ success: false, carrier: "tls", awb, error: "No data", raw });
+    }
 
-    // ===== Main Tracking Data =====
-    const trackingData = {
-      awb: data.tracking_no || awb,
-      bookingDate: docketInfo["Booking Date"] || "Not Available",
-      consignor: docketInfo["Shipper Company"] || docketInfo["Shipper Name"] || "Not Available",
-      consignee: docketInfo["Consignee Name"] || docketInfo["Consignee Company"] || "Not Available",
-      origin: docketInfo["Origin"] || docketInfo["Origin Hub"] || "Not Available",
-      destination: docketInfo["Destination"] || docketInfo["Consignee Country"] || "Not Available",
-      status: docketInfo["Status"] || "Not Available",
-      deliveryDate: docketInfo["Delivery Date and Time"] || "",
-      receiverName: docketInfo["Receiver Name"] || "",
-      vendorAwb: docketInfo["Forwarding No."] || "Not Available",
-      serviceProvider: docketInfo["Service Name"] || "TLS",
-      trackingNumber: data.tracking_no || awb,
-      remark: docketInfo["Delivery Remark"] || ""
-    };
-
-    // ===== Progress Events =====
-    const events = (data.docket_events || []).map(e => ({
-      date: (e.event_at || "").split(" ")[0],
-      time: (e.event_at || "").split(" ")[1] || "",
-      location: e.event_location || "",
-      status: e.event_description || "",
-      remarks: e.event_remark || ""
-    }));
-
-    return res.json({
+    const info = json[0];
+    res.json({
       success: true,
       carrier: "tls",
       awb,
-      data: trackingData,
-      progress: events
+      data: {
+        awb: info.tracking_no,
+        bookingDate: info.docket_info?.find(x => x[0] === "Booking Date")?.[1] || "Not Available",
+        consignee: info.docket_info?.find(x => x[0] === "Consignee Name")?.[1] || "Not Available",
+        origin: info.docket_info?.find(x => x[0] === "Origin")?.[1] || "Not Available",
+        destination: info.docket_info?.find(x => x[0] === "Destination")?.[1] || "Not Available",
+        status: info.docket_info?.find(x => x[0] === "Status")?.[1] || "Not Available",
+        deliveryDate: info.docket_info?.find(x => x[0] === "Delivery Date and Time")?.[1] || "",
+        receiverName: info.docket_info?.find(x => x[0] === "Receiver Name")?.[1] || "",
+        vendorAwb: info.docket_info?.find(x => x[0] === "Forwarding No.")?.[1] || "Not Available",
+      },
+      progress: info.docket_events || []
     });
 
   } catch (err) {
-    return res.status(500).json({ success: false, carrier: "tls", awb, error: err.message });
+    console.error("❌ TLS Fetch Error:", err);
+    res.status(500).json({ success: false, carrier: "tls", awb, error: err.message });
   }
 });
-
 
 
 
