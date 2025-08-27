@@ -1,12 +1,18 @@
+// required modules ko import karein
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch";
+import fetch from "node-fetch"; // node-fetch version 3.x
+import axios from "axios";
+import * as cheerio from "cheerio";
+import * as XLSX from "xlsx";
 
+// express application ko initialize karein
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // CORS ko enable karein
+app.use(express.json()); // JSON body ko parse karne ke liye
 
-// ✅ Helper Functions
+// ============ Helper Functions (Madadgar Functions) ============
+// yah function events ko normalize karta hai
 function normalizeEvents(events = []) {
   return (Array.isArray(events) ? events : []).map(e => ({
     date: e?.EventDate ?? e?.date ?? "",
@@ -17,6 +23,7 @@ function normalizeEvents(events = []) {
   }));
 }
 
+// yah function tracking data ko normalize karta hai
 function normalizeTracking(tr) {
   return {
     awb: tr?.AWBNo ?? tr?.awbNo ?? "Not Available",
@@ -38,14 +45,17 @@ function normalizeTracking(tr) {
   };
 }
 
-// ======== Helper Function for TLS ========
+// TLS ke liye helper function
 function getValue(infoArr, key) {
   if (!Array.isArray(infoArr)) return "Not Available";
   const row = infoArr.find(i => i[0] === key);
   return row ? row[1] : "Not Available";
 }
 
-/* ================== AIRWINGS ================== */
+// ===================== API Routes =====================
+
+/* ============== AIRWINGS ============== */
+// airwings API se tracking data fetch karne ke liye route
 app.get("/track/airwings/:awb", async (req, res) => {
   const { awb } = req.params;
   try {
@@ -81,7 +91,8 @@ app.get("/track/airwings/:awb", async (req, res) => {
   }
 });
 
-/* ================== PACIFICEXP ================== */
+/* ============== PACIFICEXP ============== */
+// pacificexp API se tracking data fetch karne ke liye route
 app.get("/track/pacificexp/:awb", async (req, res) => {
   const { awb } = req.params;
   try {
@@ -117,12 +128,11 @@ app.get("/track/pacificexp/:awb", async (req, res) => {
   }
 });
 
-/* ================== TLS (Mock Data) ================== */
+/* ============== TLS ============== */
+// TLS API se tracking data fetch karne ke liye route
 app.get('/track/tls/:awb', async (req, res) => {
   try {
     const { awb } = req.params;
-
-    // ✅ TLS API URL
     const url = `https://tlc.itdservices.in/api/tracking_api/get_tracking_data?tracking_no=${awb}&customer_code=superadmin&company=tlc&api_company_id=5`;
 
     const response = await fetch(url, {
@@ -134,7 +144,6 @@ app.get('/track/tls/:awb', async (req, res) => {
 
     const text = await response.text();
 
-    // Agar API json string return kare toh parse karo
     let data;
     try {
       data = JSON.parse(text);
@@ -142,7 +151,6 @@ app.get('/track/tls/:awb', async (req, res) => {
       return res.json({ success: false, error: 'Invalid JSON from TLS API' });
     }
 
-    // ✅ Response normalize karo frontend ke liye
     if (Array.isArray(data) && data.length > 0 && !data[0].errors) {
       const d = data[0];
       res.json({
@@ -171,17 +179,78 @@ app.get('/track/tls/:awb', async (req, res) => {
     } else {
       res.json({ success: false, carrier: 'tls', awb, error: 'TLS AWB not found' });
     }
-
   } catch (err) {
     res.json({ success: false, carrier: 'tls', error: err.message });
   }
 });
 
-// ======== Test Route ========
-app.get('/', (req, res) => {
-  res.send('✅ Tracking Proxy Running');
+/* ============== Axios Example ============== */
+// is route par axios ka istemal karke data fetch karenge
+app.get("/axios-example", async (req, res) => {
+  try {
+    const response = await axios.get("https://jsonplaceholder.typicode.com/posts/1");
+    res.json({
+      message: "Data fetched using Axios",
+      data: response.data
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Axios request failed" });
+  }
 });
 
-/* ================== START SERVER ================== */
+/* ============== Cheerio Example ============== */
+// is route par cheerio ka istemal karke web scraping karenge
+app.get("/cheerio-example", async (req, res) => {
+  try {
+    const { data } = await axios.get("https://en.wikipedia.org/wiki/Web_scraping");
+    const $ = cheerio.load(data);
+    const pageTitle = $("h1").text(); // page ka title nikaalein
+    const firstParagraph = $("p").first().text(); // pehla paragraph nikaalein
+
+    res.json({
+      message: "Data scraped using Cheerio",
+      pageTitle,
+      firstParagraph
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Cheerio web scraping failed" });
+  }
+});
+
+/* ============== XLSX Example ============== */
+// is route par XLSX ka istemal karke Excel file banayenge
+app.get("/xlsx-example", (req, res) => {
+  const data = [
+    { Name: "John Doe", Age: 30, City: "New York" },
+    { Name: "Jane Smith", Age: 25, City: "London" }
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(data); // JSON data se worksheet banayein
+  const wb = XLSX.utils.book_new(); // ek naya workbook banayein
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1"); // workbook mein worksheet jodein
+
+  // Excel file ko buffer mein convert karein
+  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+  // Response headers set karein Excel file bhejne ke liye
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=" + "data.xlsx"
+  );
+
+  res.send(buffer);
+});
+
+// ===================== Server Setup =====================
+
+// server ko start karein
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
+  console.log('✅ Tracking routes are active: /track/airwings/:awb, /track/pacificexp/:awb, /track/tls/:awb');
+  console.log('✅ Example routes are active: /axios-example, /cheerio-example, /xlsx-example');
+});
