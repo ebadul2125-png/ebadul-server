@@ -160,7 +160,8 @@ app.get('/track/tls/:awb', async (req, res) => {
         data: {
           awb: d.tracking_no,
           bookingDate: getValue(d.docket_info, "Booking Date"),
-          consignor: getValue(d.docket_info, "Shipper Name"),
+          consignor: getValue(d.docket_info, "Go Fast Cargo and Couriers
+"),
           consignee: getValue(d.docket_info, "Consignee Name"),
           origin: getValue(d.docket_info, "Origin"),
           destination: getValue(d.docket_info, "Destination"),
